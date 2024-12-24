@@ -12,7 +12,7 @@ import Overlay from "ol/Overlay";
 import { Geolocation } from "@open-pioneer/geolocation";
 import { InitialExtent, ZoomIn, ZoomOut } from "@open-pioneer/map-navigation";
 import { useIntl } from "open-pioneer:react-hooks";
-import { transformExtent } from "ol/proj"; 
+import { transformExtent } from "ol/proj";
 
 export function MapApp() {
 
@@ -51,7 +51,7 @@ export function MapApp() {
                 "EPSG:4326",
                 "EPSG:3857"
             );
-    
+
             // Filter: Nur Features innerhalb des Extents
             const vectorSource = new VectorSource({
                 features: new GeoJSON().readFeatures(geoJsonData, {
@@ -59,22 +59,33 @@ export function MapApp() {
                     featureProjection: "EPSG:3857",
                 }),
             });
-    
+
             const filteredFeatures = vectorSource.getFeatures().filter((feature) => {
                 const coordinates = feature?.getGeometry().getCoordinates();
                 return coordinates[0] >= extent[0] && coordinates[0] <= extent[2] && // Längengrad prüfen
-                       coordinates[1] >= extent[1] && coordinates[1] <= extent[3];  // Breitengrad prüfen
+                    coordinates[1] >= extent[1] && coordinates[1] <= extent[3];  // Breitengrad prüfen
             });
 
-            const tableEntries = filteredFeatures.map((feature) => ({
-                name: feature.get("NAME"),
-                status: feature.get("status"),
-                total: feature.get("parkingTotal"),
-                free: feature.get("parkingFree"),
-                coordinates: feature.getGeometry().getCoordinates(),
-            }));
+            const tableEntries = filteredFeatures.map((feature) => {
+                const free = feature.get("parkingFree");
+                const total = feature.get("parkingTotal");
+
+                // Berechnung der Auslastung in Prozent
+                const freePercentage = total > 0 ? (free / total) * 100 : 0;
+
+                feature.set("freePercentage", freePercentage)
+
+                return {
+                    name: feature.get("NAME"),
+                    status: feature.get("status"),
+                    total: total,
+                    free: free,
+                    freePercentage: freePercentage.toFixed(1), // Auf eine Nachkommastelle runden
+                    coordinates: feature.getGeometry().getCoordinates(),
+                };
+            });
             setTableData(tableEntries);
-    
+
             // Quelle mit gefilterten Features
             const filteredSource = new VectorSource({
                 features: filteredFeatures,
@@ -82,17 +93,18 @@ export function MapApp() {
 
             // Dynamischer Style basierend auf dem Status
             const markerStyle = (feature: FeatureLike) => {
-                const status = feature.get("status"); // Status aus den Eigenschaften
+                const freePercentage = feature.get("freePercentage");
                 let color;
 
-                if (status === "frei") {
-                    color =
-                        "lime"; // Grünes Icon
-                } else if (status === "besetzt" || status === "geschlossen") {
-                    color =
-                        "red"; // Rotes Icon
+                // Farbe basierend auf dem Prozentsatz bestimmen
+                if (freePercentage > 50) {
+                    color = "lime"; // Mehr als 50% frei
+                } else if (freePercentage > 10 && freePercentage <= 50) {
+                    color = "yellow"; // Zwischen 5% und 50% frei
+                } else if (freePercentage > 0 && freePercentage <= 10) {
+                    color = "red"; // Weniger als 5% frei
                 } else {
-                    color = "grey"; // Standard-Icon
+                    color = "grey"; // Standardfarbe, falls Prozentsatz nicht verfügbar
                 }
 
                 return new Style({
@@ -136,11 +148,13 @@ export function MapApp() {
                     const name = feature?.get("NAME");
                     const status = feature?.get("status");
                     const parkingFree = feature?.get("parkingFree")
+                    const freePercentage = feature?.get("freePercentage").toFixed(1)
 
                     popupElement.innerHTML = `
                         <strong>${name}</strong><br/>
                         Status: ${status}<br/>
-                        Available Spots: ${parkingFree}
+                        Available Spots: ${parkingFree}<br/>
+                        Free in %: ${freePercentage}
                     `;
                     popupOverlay.setPosition(coordinates);
                 } else {
@@ -355,6 +369,7 @@ export function MapApp() {
                                             <Th>Status</Th>
                                             <Th>Total Capacity</Th>
                                             <Th>Free Spaces</Th>
+                                            <Th>Free (%)</Th>
                                         </Tr>
                                     </Thead>
                                     <Tbody>
@@ -371,6 +386,7 @@ export function MapApp() {
                                                     <Td>{row.status}</Td>
                                                     <Td>{row.total}</Td>
                                                     <Td>{row.free}</Td>
+                                                    <Td>{row.freePercentage}%</Td>
                                                 </Tr>
                                             ))}
                                     </Tbody>
