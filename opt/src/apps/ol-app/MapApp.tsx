@@ -9,23 +9,55 @@ import Style from "ol/style/Style";
 import Icon from "ol/style/Icon";
 import { FeatureLike } from "ol/Feature";
 import Overlay from "ol/Overlay";
-import Fill from "ol/style/Fill";
-import Stroke from "ol/style/Stroke";
-import CircleStyle from "ol/style/Circle";
+import { Geolocation } from "@open-pioneer/geolocation";
+import { InitialExtent, ZoomIn, ZoomOut } from "@open-pioneer/map-navigation";
+import { useIntl } from "open-pioneer:react-hooks";
 
 export function MapApp() {
+
+    const intl = useIntl();
     const { map } = useMapModel(MAP_ID);
     const [mode, setMode] = useState("Live Tracking");
+    const [geoJsonData, setGeoJsonData] = useState(null);
     const [tableData, setTableData] = useState<any[]>([]);
 
+    // Funktion zum Laden der GeoJSON-Daten von der API
+    const fetchGeoJson = async () => {
+        try {
+            const response = await fetch("https://api.dashboard.smartcity.ms/parking");
+            if (!response.ok) {
+                throw new Error(`Error fetching data: ${response.statusText}`);
+            }
+            const data = await response.json();
+
+            // GeoJSON-Daten speichern
+            setGeoJsonData(data);
+
+            // Tabellendaten aus GeoJSON extrahieren
+            const tableEntries = data.features.map((feature: any) => ({
+                name: feature.properties.NAME,
+                status: feature.properties.status,
+                total: feature.properties.parkingTotal,
+                free: feature.properties.parkingFree,
+                coordinates: feature.geometry.coordinates,
+            }));
+            setTableData(tableEntries);
+        } catch (error) {
+            console.error("Failed to fetch GeoJSON data:", error);
+        }
+    };
+
     useEffect(() => {
-        if (map?.layers) {
+        fetchGeoJson(); // API-Aufruf beim Laden der Komponente
+    }, []);
+
+    useEffect(() => {
+        if (map?.layers && geoJsonData) {
             // GeoJSON-Datenquelle aus public/data/liveData.geojson laden
             const vectorSource = new VectorSource({
-                url: "./data/liveData.geojson", // Pfad zur GeoJSON-Datei
-                format: new GeoJSON({
-                    dataProjection: "EPSG:4326", // WGS84-Koordinaten
-                    featureProjection: "EPSG:3857", // Projektion für die Karte
+                features: new GeoJSON().readFeatures(geoJsonData, {
+                    dataProjection: "EPSG:4326",
+                    featureProjection: "EPSG:3857",
                 }),
             });
 
@@ -112,7 +144,7 @@ export function MapApp() {
                 setTableData(data);
             });
         }
-    }, [map]);
+    }, [map, geoJsonData]);
 
     const handleRowClick = (coordinates: any) => {
         if (map?.olMap) {
@@ -200,7 +232,7 @@ export function MapApp() {
                 {mode === "Live Tracking" ? (
                     <Flex flex="1" direction="row" overflow="hidden">
                         {/* Left Section */}
-                        <Flex direction="column" width="60%" padding="3">
+                        <Flex direction="column" width="60%" overflow="hidden" padding="3">
                             {/* Map Section */}
                             <Box
                                 backgroundColor="white"
@@ -208,7 +240,7 @@ export function MapApp() {
                                 borderRadius="lg"
                                 boxShadow="lg"
                                 overflow="hidden"
-                                flex="7"
+                                flex="1"
                                 height="600px"
                                 marginBottom="4"
                             >
@@ -220,7 +252,7 @@ export function MapApp() {
                                     {/* Legende hinzufügen */}
                                     <Box
                                         position="absolute"
-                                        bottom="20px"
+                                        top="20px"
                                         left="20px"
                                         backgroundColor="white"
                                         padding="10px"
@@ -265,9 +297,27 @@ export function MapApp() {
                                     </Box>
                                     {/* Karte */}
                                     <MapAnchor position="top-left" horizontalGap={5} verticalGap={5} />
+                                    {/* Buttons Karte */}
+                                    <MapAnchor position="top-right" horizontalGap={10} verticalGap={30}>
+                                        <Flex
+                                            role="bottom-right"
+                                            aria-label={intl.formatMessage({ id: "ariaLabel.bottomRight" })}
+                                            direction="column"
+                                            gap={1}
+                                            padding={1}
+                                        >
+                                            <Geolocation mapId={MAP_ID} />
+                                            <InitialExtent mapId={MAP_ID} />
+                                            <ZoomIn mapId={MAP_ID} />
+                                            <ZoomOut mapId={MAP_ID} />
+                                        </Flex>
+                                    </MapAnchor>
                                 </MapContainer>
                             </Box>
+                        </Flex>
 
+                        {/* Right Section */}
+                        <Flex direction="column" width="40%" overflow="hidden" padding="3">
                             {/* Table Section */}
                             <Box
                                 backgroundColor="white"
@@ -306,22 +356,6 @@ export function MapApp() {
                                             ))}
                                     </Tbody>
                                 </Table>
-                            </Box>
-                        </Flex>
-
-                        {/* Right Section */}
-                        <Flex direction="column" width="40%" overflow="hidden" padding="3">
-                            <Box
-                                backgroundColor="white"
-                                borderWidth="1px"
-                                borderRadius="lg"
-                                boxShadow="lg"
-                                padding="4"
-                                overflow="hidden"
-                                flex="1"
-                                height="600px" // Zusätzliche Höhe für Scrollbarkeit
-                            >
-                                <p>Live Tables</p>
                             </Box>
                         </Flex>
                     </Flex>
