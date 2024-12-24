@@ -12,6 +12,7 @@ import Overlay from "ol/Overlay";
 import { Geolocation } from "@open-pioneer/geolocation";
 import { InitialExtent, ZoomIn, ZoomOut } from "@open-pioneer/map-navigation";
 import { useIntl } from "open-pioneer:react-hooks";
+import { transformExtent } from "ol/proj"; 
 
 export function MapApp() {
 
@@ -33,15 +34,6 @@ export function MapApp() {
             // GeoJSON-Daten speichern
             setGeoJsonData(data);
 
-            // Tabellendaten aus GeoJSON extrahieren
-            const tableEntries = data.features.map((feature: any) => ({
-                name: feature.properties.NAME,
-                status: feature.properties.status,
-                total: feature.properties.parkingTotal,
-                free: feature.properties.parkingFree,
-                coordinates: feature.geometry.coordinates,
-            }));
-            setTableData(tableEntries);
         } catch (error) {
             console.error("Failed to fetch GeoJSON data:", error);
         }
@@ -54,11 +46,38 @@ export function MapApp() {
     useEffect(() => {
         if (map?.layers && geoJsonData) {
             // GeoJSON-Datenquelle aus public/data/liveData.geojson laden
+            const extent = transformExtent(
+                [7.564077237738495, 51.919989489443715, 7.683893939446064, 51.99069632075093],
+                "EPSG:4326",
+                "EPSG:3857"
+            );
+    
+            // Filter: Nur Features innerhalb des Extents
             const vectorSource = new VectorSource({
                 features: new GeoJSON().readFeatures(geoJsonData, {
                     dataProjection: "EPSG:4326",
                     featureProjection: "EPSG:3857",
                 }),
+            });
+    
+            const filteredFeatures = vectorSource.getFeatures().filter((feature) => {
+                const coordinates = feature?.getGeometry().getCoordinates();
+                return coordinates[0] >= extent[0] && coordinates[0] <= extent[2] && // Längengrad prüfen
+                       coordinates[1] >= extent[1] && coordinates[1] <= extent[3];  // Breitengrad prüfen
+            });
+
+            const tableEntries = filteredFeatures.map((feature) => ({
+                name: feature.get("NAME"),
+                status: feature.get("status"),
+                total: feature.get("parkingTotal"),
+                free: feature.get("parkingFree"),
+                coordinates: feature.getGeometry().getCoordinates(),
+            }));
+            setTableData(tableEntries);
+    
+            // Quelle mit gefilterten Features
+            const filteredSource = new VectorSource({
+                features: filteredFeatures,
             });
 
             // Dynamischer Style basierend auf dem Status
@@ -88,7 +107,7 @@ export function MapApp() {
 
             // GeoJSON-Layer mit dynamischem Style erstellen
             const geojsonLayer = new VectorLayer({
-                source: vectorSource,
+                source: filteredSource,
                 style: markerStyle,
             });
 
@@ -130,10 +149,10 @@ export function MapApp() {
             });
 
 
-            vectorSource.once("featuresloadend", () => {
-                const extent = vectorSource.getExtent();
+            filteredSource.once("featuresloadend", () => {
+                const extent = filteredSource.getExtent();
                 map.olMap.getView().fit(extent, { padding: [50, 50, 50, 50] });
-                const features = vectorSource.getFeatures();
+                const features = filteredSource.getFeatures();
                 const data = features.map((feature) => ({
                     name: feature.get("NAME"),
                     status: feature.get("status"),
