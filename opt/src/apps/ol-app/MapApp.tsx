@@ -21,6 +21,33 @@ export function MapApp() {
     const [mode, setMode] = useState("Live Tracking");
     const [geoJsonData, setGeoJsonData] = useState(null);
     const [tableData, setTableData] = useState<any[]>([]);
+    const [expandedRow, setExpandedRow] = useState<number | null>(null); // Zustand für die ausgeklappte Zeile
+    const [initialView, setInitialView] = useState<{ center: [number, number]; zoom: number } | null>(null);
+
+
+    const handleRowExpand = (index: number, coordinates: any) => {
+        if (expandedRow === index) {
+            // Zeile schließen und auf Anfangsansicht zurücksetzen
+            setExpandedRow(null);
+            if (initialView && map?.olMap) {
+                map.olMap.getView().animate({
+                    center: initialView.center,
+                    zoom: initialView.zoom,
+                    duration: 500, // Animation über 0.5 Sekunde
+                });
+            }
+        } else {
+            // Zeile öffnen und Karte auf Marker zoomen
+            setExpandedRow(index);
+            if (coordinates && map?.olMap) {
+                map.olMap.getView().animate({
+                    center: coordinates,
+                    zoom: 17, // Zoomen auf einen sinnvollen Maßstab
+                    duration: 500, // Animation über 0.5 Sekunde
+                });
+            }
+        }
+    };
 
     // Funktion zum Laden der GeoJSON-Daten von der API
     const fetchGeoJson = async () => {
@@ -44,13 +71,38 @@ export function MapApp() {
     }, []);
 
     useEffect(() => {
+        const headerElement = document.querySelector("header"); // Adjust selector as needed
+        const footerElement = document.querySelector("footer");
+
+        const headerHeight = headerElement?.offsetHeight || 0;
+        const footerHeight = footerElement?.offsetHeight || 0;
+
+        const mapHeight = window.innerHeight - headerHeight - footerHeight;
+
+        // Apply the calculated height to your map
+        const mapElement = document.getElementById("mapContainer");
+        if (mapElement) {
+            mapElement.style.height = `${mapHeight}px`;
+        }
+    }, []);
+
+    useEffect(() => {
         if (map?.layers && geoJsonData) {
             // GeoJSON-Datenquelle aus public/data/liveData.geojson laden
             const extent = transformExtent(
-                [7.564077237738495, 51.919989489443715, 7.683893939446064, 51.99069632075093],
+                [7.60416153295933, 51.9508596684052, 7.652558291969784, 51.97782974576418],
                 "EPSG:4326",
                 "EPSG:3857"
             );
+
+            const view = map.olMap.getView();
+            view.fit(extent, { maxZoom: 16 });
+
+
+            setInitialView({
+                center: view.getCenter() as [number, number],
+                zoom: view.getZoom() || 10, // Fallback-Zoomstufe
+            });
 
             // Filter: Nur Features innerhalb des Extents
             const vectorSource = new VectorSource({
@@ -101,7 +153,7 @@ export function MapApp() {
                     color = "lime"; // Mehr als 50% frei
                 } else if (freePercentage > 10 && freePercentage <= 50) {
                     color = "yellow"; // Zwischen 5% und 50% frei
-                } else if (freePercentage > 0 && freePercentage <= 10) {
+                } else if (freePercentage > 0.01 && freePercentage <= 10) {
                     color = "red"; // Weniger als 5% frei
                 } else {
                     color = "grey"; // Standardfarbe, falls Prozentsatz nicht verfügbar
@@ -147,18 +199,26 @@ export function MapApp() {
                     const coordinates = feature?.getGeometry().getCoordinates();
                     const name = feature?.get("NAME");
                     const status = feature?.get("status");
-                    const parkingFree = feature?.get("parkingFree")
-                    const freePercentage = feature?.get("freePercentage").toFixed(1)
+                    const parkingFree = feature?.get("parkingFree");
+                    const freePercentage = feature?.get("freePercentage").toFixed(1);
 
+                    // Popup anzeigen
                     popupElement.innerHTML = `
-                        <strong>${name}</strong><br/>
-                        Status: ${status}<br/>
-                        Available Spots: ${parkingFree}<br/>
-                        Free in %: ${freePercentage}
-                    `;
+            <strong>${name}</strong><br/>
+            Status: ${status}<br/>
+            Available Spots: ${parkingFree}<br/>
+            Free in %: ${freePercentage}
+        `;
                     popupOverlay.setPosition(coordinates);
+
+                    // Passenden Tabelleneintrag ausklappen
+                    const rowIndex = tableData.findIndex((row) => row.name === name);
+                    if (rowIndex !== -1) {
+                        setExpandedRow(rowIndex);
+                    }
                 } else {
                     popupOverlay.setPosition(undefined); // Popup schließen
+                    setExpandedRow(null); // Keine Zeile ausgeklappt
                 }
             });
 
@@ -178,16 +238,6 @@ export function MapApp() {
             });
         }
     }, [map, geoJsonData]);
-
-    const handleRowClick = (coordinates: any) => {
-        if (map?.olMap) {
-            map.olMap.getView().animate({
-                center: coordinates,
-                zoom: 17, // Zoomen auf einen sinnvollen Maßstab
-                duration: 500, // Animation über 0.5 Sekunde
-            });
-        }
-    };
 
     return (
         <Flex direction="column" minHeight="100vh" width="100%">
@@ -261,7 +311,7 @@ export function MapApp() {
             </Box>
 
             {/* Hauptinhalt */}
-            <Flex flex="1" direction="column" overflowY="auto">
+            <Flex flex="1" direction="column" overflow="hidden">
                 {mode === "Live Tracking" ? (
                     <Flex flex="1" direction="row" overflow="hidden">
                         {/* Left Section */}
@@ -274,11 +324,11 @@ export function MapApp() {
                                 boxShadow="lg"
                                 overflow="hidden"
                                 flex="1"
-                                height="600px"
                                 marginBottom="4"
                             >
                                 <MapContainer
                                     mapId={MAP_ID}
+                                    id="mapcontainer"
                                     role="main"
                                     aria-label="Interactive Parking Map"
                                 >
@@ -311,11 +361,21 @@ export function MapApp() {
                                             <Box
                                                 width="16px"
                                                 height="16px"
+                                                backgroundColor="yellow"
+                                                marginRight="8px"
+                                                borderRadius="50%"
+                                            ></Box>
+                                            <Text>Half Occupied</Text>
+                                        </Flex>
+                                        <Flex alignItems="center" marginBottom="2">
+                                            <Box
+                                                width="16px"
+                                                height="16px"
                                                 backgroundColor="red"
                                                 marginRight="8px"
                                                 borderRadius="50%"
                                             ></Box>
-                                            <Text>Occupied</Text>
+                                            <Text>Almost Occupied</Text>
                                         </Flex>
                                         <Flex alignItems="center">
                                             <Box
@@ -325,7 +385,7 @@ export function MapApp() {
                                                 marginRight="8px"
                                                 borderRadius="50%"
                                             ></Box>
-                                            <Text>Closed</Text>
+                                            <Text>Not Available</Text>
                                         </Flex>
                                     </Box>
                                     {/* Karte */}
@@ -340,7 +400,41 @@ export function MapApp() {
                                             padding={1}
                                         >
                                             <Geolocation mapId={MAP_ID} />
-                                            <InitialExtent mapId={MAP_ID} />
+                                            <Button
+                                                onClick={() => {
+                                                    if (map?.olMap) {
+                                                        const view = map.olMap.getView();
+                                                        const initialExtent = transformExtent(
+                                                            [7.60416153295933, 51.9508596684052, 7.652558291969784, 51.97782974576418], // Beispiel-Extent
+                                                            "EPSG:4326",
+                                                            "EPSG:3857"
+                                                        );
+                                                        view.fit(initialExtent, { maxZoom: 16 });
+                                                    }
+                                                }}
+                                                backgroundColor="blue.500"
+                                                color="white"
+                                                borderRadius="md"
+                                                boxShadow="md"
+                                                width="40px"
+                                                height="40px"
+                                                display="flex"
+                                                alignItems="center"
+                                                justifyContent="center"
+                                                _hover={{ backgroundColor: "blue.400" }}
+                                                _active={{ backgroundColor: "blue.600" }}
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                    style={{
+                                                        fontSize: "28px", // Größe des Icons festlegen
+                                                    }}
+                                                >
+                                                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+                                                </svg>
+                                            </Button>
                                             <ZoomIn mapId={MAP_ID} />
                                             <ZoomOut mapId={MAP_ID} />
                                         </Flex>
@@ -367,27 +461,37 @@ export function MapApp() {
                                         <Tr>
                                             <Th>Parking Facility</Th>
                                             <Th>Status</Th>
-                                            <Th>Total Capacity</Th>
-                                            <Th>Free Spaces</Th>
-                                            <Th>Free (%)</Th>
+                                            <Th>Parking Free</Th>
                                         </Tr>
                                     </Thead>
                                     <Tbody>
                                         {tableData
                                             .sort((a, b) => b.free - a.free) // Sortieren nach freien Parkplätzen
                                             .map((row, index) => (
-                                                <Tr
-                                                    key={index}
-                                                    onClick={() => handleRowClick(row.coordinates)} // Zeile anklickbar machen
-                                                    style={{ cursor: "pointer", backgroundColor: "#f9f9f9" }} // Cursor und Hover-Stil
-                                                    _hover={{ backgroundColor: "#e9ecef" }}
-                                                >
-                                                    <Td>{row.name}</Td>
-                                                    <Td>{row.status}</Td>
-                                                    <Td>{row.total}</Td>
-                                                    <Td>{row.free}</Td>
-                                                    <Td>{row.freePercentage}%</Td>
-                                                </Tr>
+                                                <>
+                                                    <Tr
+                                                        key={index}
+                                                        onClick={() => handleRowExpand(index, row.coordinates)} // Zeile anklickbar und Karte zoomen
+                                                        style={{
+                                                            cursor: "pointer",
+                                                            backgroundColor: expandedRow === index ? "#e9ecef" : "#f9f9f9",
+                                                        }} // Hintergrundfarbe bei Auswahl ändern
+                                                        _hover={{ backgroundColor: "#d6d6d6" }}
+                                                    >
+                                                        <Td>{row.name}</Td>
+                                                        <Td>{row.status}</Td>
+                                                        <Td>{row.free}</Td>
+                                                    </Tr>
+                                                    {expandedRow === index && (
+                                                        <Tr>
+                                                            <Td colSpan={5} style={{ backgroundColor: "#f1f1f1", padding: "10px" }}>
+                                                                <Text><strong>Free (%):</strong> {row.freePercentage}</Text>
+                                                                <Text><strong>Parking Total:</strong> {row.total}</Text>
+                                                                <Text><strong>Parking Free:</strong> {row.free}</Text>
+                                                            </Td>
+                                                        </Tr>
+                                                    )}
+                                                </>
                                             ))}
                                     </Tbody>
                                 </Table>
