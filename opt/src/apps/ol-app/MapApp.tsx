@@ -23,6 +23,7 @@ export function MapApp() {
     const [tableData, setTableData] = useState<any[]>([]);
     const [expandedRow, setExpandedRow] = useState<number | null>(null); // Zustand für die ausgeklappte Zeile
     const [initialView, setInitialView] = useState<{ center: [number, number]; zoom: number } | null>(null);
+    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
 
     const handleRowExpand = (index: number, coordinates: any) => {
@@ -61,6 +62,10 @@ export function MapApp() {
             // GeoJSON-Daten speichern
             setGeoJsonData(data);
 
+            // Setze die Aktualisierungszeit
+            const currentTime = new Date();
+            setLastUpdated(currentTime.toLocaleString("de-DE")); // Format für deutsches Datum/Uhrzeit
+
         } catch (error) {
             console.error("Failed to fetch GeoJSON data:", error);
         }
@@ -90,7 +95,7 @@ export function MapApp() {
         if (map?.layers && geoJsonData) {
             // GeoJSON-Datenquelle aus public/data/liveData.geojson laden
             const extent = transformExtent(
-                [7.60416153295933, 51.9508596684052, 7.652558291969784, 51.97782974576418],
+                [7.602380686696091, 51.94791196358763, 7.652558291969784, 51.97782974576418],
                 "EPSG:4326",
                 "EPSG:3857"
             );
@@ -242,7 +247,7 @@ export function MapApp() {
     return (
         <Flex direction="column" minHeight="100vh" width="100%">
             {/* Navbar */}
-            <Box backgroundColor="blue.500" padding="4" color="white" boxShadow="lg">
+            <Box backgroundColor="#2d7d9f" padding="4" color="white" boxShadow="lg">
                 <Flex justifyContent="space-between" alignItems="center">
                     {/* Left: Logo and Title */}
                     <Flex alignItems="center" gap="3">
@@ -261,7 +266,7 @@ export function MapApp() {
                     {/* Center: Dropdown */}
                     <Select
                         width="200px"
-                        backgroundColor="blue.400"
+                        backgroundColor="#2d7d9f"
                         color="white"
                         fontSize="2xl"
                         fontWeight="bold"
@@ -316,6 +321,37 @@ export function MapApp() {
                     <Flex flex="1" direction="row" overflow="hidden">
                         {/* Left Section */}
                         <Flex direction="column" width="60%" overflow="hidden" padding="3">
+                            {/* Text über der Karte */}
+                            <Flex justifyContent="flex-end" padding="2" backgroundColor="white" boxShadow="sm" >
+                                <Text fontSize="md" color="gray.600" textAlign="center">
+                                    {lastUpdated ? `Last updated: ${lastUpdated}` : "Loading data..."}
+                                </Text>
+                                {/* Refresh button */}
+                                <Button
+                                    onClick={fetchGeoJson} // Function to refresh data
+                                    backgroundColor="white" // Set background to white
+                                    color="#3182CE" // Blue icon color
+                                    borderRadius="50%" // Rounded button
+                                    width="30px" // Equal width and height for a perfect circle
+                                    height="30px"
+                                    display="flex" // Ensures proper centering of the icon
+                                    alignItems="center"
+                                    justifyContent="center"
+                                    padding="2"
+                                    _hover={{
+                                        backgroundColor: "#E3F2FD", // Light blue hover effect
+                                        borderColor: "#3182CE",
+                                    }}
+                                    _active={{
+                                        backgroundColor: "#BBDEFB", // Darker blue on click
+                                        borderColor: "#3182CE",
+                                    }}
+                                    aria-label="Refresh"
+                                >
+                                    <svg width="39px" height="39px" viewBox="-24 -24 72.00 72.00" fill="none" xmlns="http://www.w3.org/2000/svg" transform="rotate(0)"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.096"></g><g id="SVGRepo_iconCarrier"> <path d="M3 3V8M3 8H8M3 8L6 5.29168C7.59227 3.86656 9.69494 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.71683 21 4.13247 18.008 3.22302 14" stroke="#3182CE" stroke-width="1.8240000000000003" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
+                                </Button>
+
+                            </Flex>
                             {/* Map Section */}
                             <Box
                                 backgroundColor="white"
@@ -412,7 +448,7 @@ export function MapApp() {
                                                         view.fit(initialExtent, { maxZoom: 16 });
                                                     }
                                                 }}
-                                                backgroundColor="blue.500"
+                                                backgroundColor="#2d7d9f"
                                                 color="white"
                                                 borderRadius="md"
                                                 boxShadow="md"
