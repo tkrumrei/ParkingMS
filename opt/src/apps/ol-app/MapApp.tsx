@@ -322,7 +322,7 @@ export function MapApp() {
                         {/* Left Section */}
                         <Flex direction="column" width="60%" overflow="hidden" padding="3">
                             {/* Text über der Karte */}
-                            <Flex justifyContent="flex-end" padding="2" backgroundColor="white" boxShadow="sm" >
+                            <Flex justifyContent="flex-end" backgroundColor="white" boxShadow="sm" >
                                 <Text fontSize="md" color="gray.600" textAlign="center">
                                     {lastUpdated ? `Last updated: ${lastUpdated}` : "Loading data..."}
                                 </Text>
@@ -555,7 +555,7 @@ export function MapApp() {
 
             {/* Footer */}
             <Box
-                backgroundColor="blue.500"
+                backgroundColor="#2d7d9f"
                 color="white"
                 padding="4"
                 textAlign="center"
