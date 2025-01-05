@@ -87,6 +87,16 @@ export default defineConfig(({ mode }) => {
                     inline: [/@open-pioneer[/\\]/]
                 }
             }
+        },
+
+        server: {
+            proxy: {
+                "/api": {
+                    target: "https://www.stadt-muenster.de", // Ziel-URL der externen API
+                    changeOrigin: true, // Ändert den Origin-Header auf den Zielserver
+                    rewrite: (path) => path.replace(/^\/api/, "") // Entfernt den /api-Prefix
+                }
+            }
         }
 
         // disable hot reloading

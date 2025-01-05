@@ -1,0 +1,226 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.601096962165589,
+                    51.96586833247335
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus PH Coesfelder Kreuz"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.6267900402831375,
+                    51.965993138160854
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Theater"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.631688677871382,
+                    51.964243549926614
+                ]
+            },
+            "properties": {
+                "NAME": "Parkplatz Hörster Platz"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.63238688474126,
+                    51.96233720813435
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Alter Steinweg"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.616802296129002,
+                    51.965714494555115
+                ]
+            },
+            "properties": {
+                "NAME": "Parkplatz Busparkplatz"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.616959853461617,
+                    51.96437712646424
+                ]
+            },
+            "properties": {
+                "NAME": "Parkplatz Schlossplatz Nord"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.616849902642203,
+                    51.962748999573954
+                ]
+            },
+            "properties": {
+                "NAME": "Parkplatz Schlossplatz Süd"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.623030666897218,
+                    51.960466548762525
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Aegidii"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.619172622661314,
+                    51.959603471601845
+                ]
+            },
+            "properties": {
+                "NAME": "Parkplatz Georgskommende"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.626485216249935,
+                    51.959778851561595
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Münster-Arkaden"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.630411521483352,
+                    51.96127164447772
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Karstadt"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.629794561445894,
+                    51.96003310823958
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Stubengasse"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.6376561070754345,
+                    51.957940206392635
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Bremer Platz"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.631394483247167,
+                    51.955746438640716
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Engelenschanze"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.632952075623044,
+                    51.95523423271743
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Bahnhofstraße"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.636025382313851,
+                    51.949832097594715
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus Cineplex"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    7.64094122744587,
+                    51.949367618690154
+                ]
+            },
+            "properties": {
+                "NAME": "Parkhaus PH Stadthaus 3"
+            }
+        }
+    ]
+}

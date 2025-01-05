@@ -13,6 +13,7 @@ import { Geolocation } from "@open-pioneer/geolocation";
 import { InitialExtent, ZoomIn, ZoomOut } from "@open-pioneer/map-navigation";
 import { useIntl } from "open-pioneer:react-hooks";
 import { transformExtent } from "ol/proj";
+import { set } from "ol/transform";
 
 export function MapApp() {
 
@@ -21,6 +22,7 @@ export function MapApp() {
     const [mode, setMode] = useState("Live Tracking");
     const [geoJsonData, setGeoJsonData] = useState(null);
     const [tableData, setTableData] = useState<any[]>([]);
+    const [liveData, setLiveData] = useState<any[]>([]);
     const [expandedRow, setExpandedRow] = useState<number | null>(null); // Zustand für die ausgeklappte Zeile
     const [initialView, setInitialView] = useState<{ center: [number, number]; zoom: number } | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -53,27 +55,135 @@ export function MapApp() {
     // Funktion zum Laden der GeoJSON-Daten von der API
     const fetchGeoJson = async () => {
         try {
-            const response = await fetch("https://api.dashboard.smartcity.ms/parking");
+            const response = await fetch("./data/parkhaeuser.geojson");
             if (!response.ok) {
                 throw new Error(`Error fetching data: ${response.statusText}`);
             }
-            const data = await response.json();
 
-            // GeoJSON-Daten speichern
+            let data = await response.json();
+
+            // Füge das neue Attribut `NAME_NORMALIZED` hinzu
+            data = addNormalizedNamesToGeoJson(data);
+
+            // Speichere die bereinigten GeoJSON-Daten
             setGeoJsonData(data);
 
-            // Setze die Aktualisierungszeit
+            // Aktualisierungszeit setzen
             const currentTime = new Date();
-            setLastUpdated(currentTime.toLocaleString("de-DE")); // Format für deutsches Datum/Uhrzeit
-
+            setLastUpdated(currentTime.toLocaleString("de-DE"));
         } catch (error) {
             console.error("Failed to fetch GeoJSON data:", error);
         }
     };
 
+
+
+    const normalizeText = (text: string | null): string => {
+        if (!text) return "";
+        return text
+            .replace(/ß/g, "") // Entferne "ß"
+            .replace(/ü/g, "") // Entferne "ü"
+            .replace(/ö/g, "") // Entferne "ö"
+            .replace(/ä/g, "") // Entferne "ä"
+    };
+
+    const addNormalizedNamesToGeoJson = (geoJsonData: any) => {
+        const updatedGeoJson = {
+            ...geoJsonData,
+            features: geoJsonData.features.map((feature) => ({
+                ...feature,
+                properties: {
+                    ...feature.properties,
+                    NAME_NORMALIZED: normalizeText(feature.properties.NAME), // Neues Attribut mit bereinigtem Namen
+                },
+            })),
+        };
+        return updatedGeoJson;
+    };
+
+
+    const fetchXmlData = async () => {
+        try {
+            const response = await fetch("/api/ms/tiefbauamt/pls/PLS-INet.xml");
+            if (!response.ok) {
+                throw new Error(`Error fetching XML data: ${response.statusText}`);
+            }
+
+            const textData = await response.text();
+
+            // XML-Daten parsen
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(textData, "application/xml");
+
+            // XML in JSON konvertieren
+            const parkhaeuser = Array.from(xmlDoc.getElementsByTagName("parkhaus")).map((node) => ({
+                bezeichnung: sanitizeText(node.getElementsByTagName("bezeichnung")[0]?.textContent),
+                gesamt: parseInt(node.getElementsByTagName("gesamt")[0]?.textContent || "0"),
+                frei: parseInt(node.getElementsByTagName("frei")[0]?.textContent || "0"),
+                status: node.getElementsByTagName("status")[0]?.textContent || "",
+                zeitstempel: node.getElementsByTagName("zeitstempel")[0]?.textContent || "",
+            }));
+
+            // Ausgabe der JSON-Daten in der Konsole
+            console.log("Converted JSON Data:", parkhaeuser);
+
+            // JSON-Daten zurückgeben oder weiterverarbeiten
+            setLiveData(parkhaeuser);
+
+        } catch (error) {
+            console.error("Failed to fetch XML data:", error);
+        }
+    };
+
+    function sanitizeText(text: string | null | undefined): string {
+        if (!text) return "";
+        return text
+            .replace(/�/g, "") // Ersetze falsch dargestellte Zeichen
+    }
+
     useEffect(() => {
-        fetchGeoJson(); // API-Aufruf beim Laden der Komponente
+        fetchGeoJson();
+        fetchXmlData();
     }, []);
+
+    useEffect(() => {
+        if (geoJsonData && liveData) {
+            console.log(geoJsonData);
+            console.log(liveData);
+    
+            const updatedGeoJsonData = {
+                ...geoJsonData,
+                features: geoJsonData.features.map((feature) => {
+                    const normalizedFeatureName = feature.properties.NAME_NORMALIZED;
+    
+                    // Bereinige auch den `bezeichnung`-Wert aus `liveData`
+                    const parkhaus = liveData.find(
+                        (item) => item.bezeichnung === normalizedFeatureName
+                    );
+    
+                    if (parkhaus) {
+                        return {
+                            ...feature,
+                            properties: {
+                                ...feature.properties, // Behalte bestehende Eigenschaften bei
+                                parkingTotal: parkhaus.gesamt,
+                                parkingFree: parkhaus.frei,
+                                status: parkhaus.status,
+                            },
+                        };
+                    }
+    
+                    return feature; // Unverändert zurückgeben, wenn kein Match gefunden wird
+                }),
+            };
+    
+            // Verhindere Endlosschleife durch Vergleich
+            if (JSON.stringify(geoJsonData) !== JSON.stringify(updatedGeoJsonData)) {
+                setGeoJsonData(updatedGeoJsonData);
+            }
+        }
+    }, [geoJsonData, liveData]);    
+
 
     useEffect(() => {
         const headerElement = document.querySelector("header"); // Adjust selector as needed
@@ -93,7 +203,6 @@ export function MapApp() {
 
     useEffect(() => {
         if (map?.layers && geoJsonData) {
-            // GeoJSON-Datenquelle aus public/data/liveData.geojson laden
             const extent = transformExtent(
                 [7.602380686696091, 51.94791196358763, 7.652558291969784, 51.97782974576418],
                 "EPSG:4326",
@@ -348,7 +457,7 @@ export function MapApp() {
                                     }}
                                     aria-label="Refresh"
                                 >
-                                    <svg width="39px" height="39px" viewBox="-24 -24 72.00 72.00" fill="none" xmlns="http://www.w3.org/2000/svg" transform="rotate(0)"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.096"></g><g id="SVGRepo_iconCarrier"> <path d="M3 3V8M3 8H8M3 8L6 5.29168C7.59227 3.86656 9.69494 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.71683 21 4.13247 18.008 3.22302 14" stroke="#3182CE" stroke-width="1.8240000000000003" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
+                                    <svg width="39px" height="39px" viewBox="-24 -24 72.00 72.00" fill="none" xmlns="http://www.w3.org/2000/svg" transform="rotate(0)"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round" stroke="#CCCCCC" strokeWidth="0.096"></g><g id="SVGRepo_iconCarrier"> <path d="M3 3V8M3 8H8M3 8L6 5.29168C7.59227 3.86656 9.69494 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.71683 21 4.13247 18.008 3.22302 14" stroke="#3182CE" strokeWidth="1.8240000000000003" strokeLinecap="round" strokeLinejoin="round"></path> </g></svg>
                                 </Button>
 
                             </Flex>
