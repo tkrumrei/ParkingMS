@@ -14,6 +14,8 @@ import { InitialExtent, ZoomIn, ZoomOut } from "@open-pioneer/map-navigation";
 import { useIntl } from "open-pioneer:react-hooks";
 import { transformExtent } from "ol/proj";
 import { set } from "ol/transform";
+import { AnalysisPage } from "./AnalysisPage";
+import { ForecastingPage } from "./ForecastingPage";
 
 export function MapApp() {
 
@@ -150,17 +152,17 @@ export function MapApp() {
         if (geoJsonData && liveData) {
             console.log(geoJsonData);
             console.log(liveData);
-    
+
             const updatedGeoJsonData = {
                 ...geoJsonData,
                 features: geoJsonData.features.map((feature) => {
                     const normalizedFeatureName = feature.properties.NAME_NORMALIZED;
-    
+
                     // Bereinige auch den `bezeichnung`-Wert aus `liveData`
                     const parkhaus = liveData.find(
                         (item) => item.bezeichnung === normalizedFeatureName
                     );
-    
+
                     if (parkhaus) {
                         return {
                             ...feature,
@@ -172,17 +174,17 @@ export function MapApp() {
                             },
                         };
                     }
-    
+
                     return feature; // Unverändert zurückgeben, wenn kein Match gefunden wird
                 }),
             };
-    
+
             // Verhindere Endlosschleife durch Vergleich
             if (JSON.stringify(geoJsonData) !== JSON.stringify(updatedGeoJsonData)) {
                 setGeoJsonData(updatedGeoJsonData);
             }
         }
-    }, [geoJsonData, liveData]);    
+    }, [geoJsonData, liveData]);
 
 
     useEffect(() => {
@@ -408,6 +410,17 @@ export function MapApp() {
                             }}
                         >
                             Forecasting
+                        </option>
+                        <option
+                            value="Analysis"
+                            style={{
+                                fontSize: "1rem",
+                                padding: "10px",
+                                backgroundColor: "white",
+                                color: "black",
+                            }}
+                        >
+                            Analysis
                         </option>
                     </Select>
 
@@ -643,23 +656,11 @@ export function MapApp() {
                             </Box>
                         </Flex>
                     </Flex>
-                ) : (
-                    <Flex flex="1" direction="column" padding="4">
-                        <Box
-                            backgroundColor="white"
-                            borderWidth="1px"
-                            borderRadius="lg"
-                            boxShadow="lg"
-                            padding="4"
-                            flex="1"
-                        >
-                            <Text fontSize="2xl" fontWeight="bold">
-                                Forecasting Data
-                            </Text>
-                            <p>This is where your forecasting content will go.</p>
-                        </Box>
-                    </Flex>
-                )}
+                ) : mode === "Forecasting" ? (
+                    <ForecastingPage/>
+                ) : mode === "Analysis" ? (
+                    <AnalysisPage />
+                ): null }
             </Flex>
 
             {/* Footer */}
