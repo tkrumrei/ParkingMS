@@ -1,102 +1,36 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
+from datetime import datetime
 
 dir_path = input("Geben Sie den Pfad zum Ordner mit den CSV-Dateien ein: ").strip()
 weekdays = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
 
-# Delete additional data
-for weekday in weekdays:
-    file_path = f"{dir_path}{weekday}.csv"
-    try:
-        # CSV-Datei laden
-        data = pd.read_csv(file_path, delimiter=",", engine="python", encoding="utf-8")
-        
-        # Sicherstellen, dass die erste Spalte Datum/Uhrzeit enthält
-        data.rename(columns={data.columns[0]: "Datum und Uhrzeit"}, inplace=True)
 
-        # Umwandlung der Datum/Uhrzeit-Spalte in einen datetime-Typ
-        data["Datum und Uhrzeit"] = pd.to_datetime(data["Datum und Uhrzeit"], errors="coerce")
+def split_csv_by_date(input_file, output_file_alt, output_file_neu, split_date):
+    # Datei einlesen
+    df = pd.read_csv(input_file, header=None)
 
-        # Entfernen von Zeilen mit ungültigen Datumsangaben
-        data = data.dropna(subset=["Datum und Uhrzeit"])
+    # Annahme: Die erste Spalte enthält die Zeitstempel
+    df[0] = pd.to_datetime(df[0], format="%Y-%m-%d %H:%M:%S")
 
-        # Filter: Nur Zeitstempel mit 15-Minuten-Schritten behalten
-        data = data[data["Datum und Uhrzeit"].dt.minute.isin([0, 15, 30, 45])]
+    # Split der Daten basierend auf dem Datum
+    df_alt = df[df[0] < split_date]
+    df_neu = df[df[0] >= split_date]
 
-        # Gefilterte Datei überschreiben
-        data.to_csv(file_path, index=False, encoding="utf-8")
-        print(f"Gefilterte Daten wurden gespeichert und die Datei wurde überschrieben: {file_path}")
+    # Dateien speichern
+    df_alt.to_csv(output_file_alt, index=False, header=False)
+    df_neu.to_csv(output_file_neu, index=False, header=False)
 
-    except Exception as e:
-        print(f"Fehler bei der Verarbeitung der Datei: {e}")
+# Parameter
+input_file = '/mnt/data/Sunday.csv'  # Eingabedatei
+output_file_alt = '/mnt/data/Sunday_alt.csv'  # Ausgabe alt
+output_file_neu = '/mnt/data/Sunday_neu.csv'  # Ausgabe neu
+split_date = datetime(2024, 11, 10)  # Stichtag
 
-    file_path = f"{dir_path}{weekday}.csv"
-    output_file = f"{dir_path}{weekday}_Averages.csv"
+# Funktion aufrufen
+split_csv_by_date(input_file, output_file_alt, output_file_neu, split_date)
 
-    try:
-        # Daten einlesen
-        monday_data = pd.read_csv(file_path)
-
-        # Sicherstellen, dass die erste Spalte Datum/Uhrzeit korrekt ist
-        monday_data.rename(columns={monday_data.columns[0]: "Datum und Uhrzeit"}, inplace=True)
-        monday_data["Datum und Uhrzeit"] = pd.to_datetime(monday_data["Datum und Uhrzeit"], errors="coerce")
-
-        # Zeit extrahieren für Gruppierung
-        monday_data["Time"] = monday_data["Datum und Uhrzeit"].dt.time
-
-        # Nur numerische Spalten für Berechnungen auswählen
-        numeric_columns = monday_data.columns[1:-1]  # Ignoriere "Datum und Uhrzeit" und "Time"
-        
-        # Nicht-numerische Werte in numerischen Spalten bereinigen
-        for col in numeric_columns:
-            monday_data[col] = pd.to_numeric(monday_data[col], errors="coerce")
-
-        # Gruppierung nach Zeit und Mittelwert berechnen
-        average_data = monday_data.groupby("Time")[numeric_columns].mean().round(0).astype(int)
-
-        # Wochentagsspalte hinzufügen
-        average_data["Weekday"] = weekday
-
-        # Index zurücksetzen und Datei speichern
-        average_data.reset_index(inplace=True)
-        average_data.to_csv(output_file, index=False)
-        print(f"Die bereinigten Durchschnittswerte wurden gespeichert unter: {output_file}")
-    except Exception as e:
-        print(f"Fehler bei der Verarbeitung: {e}")
-
-files = [
-    f"{dir_path}Monday_Averages.csv",
-    f"{dir_path}Tuesday_Averages.csv",
-    f"{dir_path}Wednesday_Averages.csv",
-    f"{dir_path}Thursday_Averages.csv",
-    f"{dir_path}Friday_Averages.csv",
-    f"{dir_path}Saturday_Averages.csv",
-    f"{dir_path}Sunday_Averages.csv"
-]
-
-# Alle Dateien kombinieren
-combined_data = pd.concat([pd.read_csv(file) for file in files], ignore_index=True)
-
-# Datei speichern
-output_file = f"{dir_path}All_Weekdays_Averages.csv"
-combined_data.to_csv(output_file, index=False)
-print(f"Die kombinierte Datei wurde gespeichert unter: {output_file}")
-
-data = pd.read_csv(output_file)
-
-# Überprüfen der Header und der ersten Zeilen
-print("Spaltennamen:")
-print(data.columns.tolist())
-
-print("\nErste Zeilen:")
-print(data.head())
-
-# Überprüfen der Wochentage in der Datei
-if "Weekday" in data.columns:
-    print("\nEindeutige Wochentage:")
-    print(data["Weekday"].unique())
-else:
-    print("\nDie Spalte 'Weekday' fehlt in der Datei.")
-
-# Anzahl der Zeilen überprüfen
-print(f"\nGesamtanzahl der Zeilen: {len(data)}")
+print("Dateien wurden erfolgreich erstellt:")
+print(f"- Alt: {output_file_alt}")
+print(f"- Neu: {output_file_neu}")
