@@ -106,34 +106,22 @@ export function MapApp() {
 
     const fetchXmlData = async () => {
         try {
-            const response = await fetch("/api/ms/tiefbauamt/pls/PLS-INet.xml");
+            const response = await fetch("https://parkingms-ol01.onrender.com/api/parking-data");
             if (!response.ok) {
-                throw new Error(`Error fetching XML data: ${response.statusText}`);
+                throw new Error(`Error fetching API: ${response.statusText}`);
             }
 
-            const textData = await response.text();
+            const data = await response.json();
 
-            // XML-Daten parsen
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(textData, "application/xml");
-
-            // XML in JSON konvertieren
-            const parkhaeuser = Array.from(xmlDoc.getElementsByTagName("parkhaus")).map((node) => ({
-                bezeichnung: sanitizeText(node.getElementsByTagName("bezeichnung")[0]?.textContent),
-                gesamt: parseInt(node.getElementsByTagName("gesamt")[0]?.textContent || "0"),
-                frei: parseInt(node.getElementsByTagName("frei")[0]?.textContent || "0"),
-                status: node.getElementsByTagName("status")[0]?.textContent || "",
-                zeitstempel: node.getElementsByTagName("zeitstempel")[0]?.textContent || "",
+            // Falls notwendig, bereinige die Namen
+            const cleanedData = data.map((item) => ({
+                ...item,
+                bezeichnung: sanitizeText(item.bezeichnung),
             }));
 
-            // Ausgabe der JSON-Daten in der Konsole
-            console.log("Converted JSON Data:", parkhaeuser);
-
-            // JSON-Daten zurückgeben oder weiterverarbeiten
-            setLiveData(parkhaeuser);
-
+            setLiveData(cleanedData);
         } catch (error) {
-            console.error("Failed to fetch XML data:", error);
+            console.error("API-Fehler:", error);
         }
     };
 
