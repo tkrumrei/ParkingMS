@@ -344,9 +344,9 @@ export function MapApp() {
     }, [map, geoJsonData]);
 
     return (
-        <Flex direction="column" minHeight="100vh" width="100%">
+        <Flex direction="column" height="100vh" width="100%">
             {/* Navbar */}
-            <Box backgroundColor="#2d7d9f" padding="4" color="white" boxShadow="lg">
+            <Box backgroundColor="#2d7d9f" padding="4" color="white" boxShadow="lg" height="10%">
                 <Flex justifyContent="space-between" alignItems="center">
                     {/* Left: Logo and Title */}
                     <Flex alignItems="center" gap="3">
@@ -426,13 +426,13 @@ export function MapApp() {
             </Box>
 
             {/* Hauptinhalt */}
-            <Flex flex="1" direction="column" overflow="hidden">
+            <Flex flex="1" direction="column" overflow="hidden" height="80%">
                 {mode === "Live Tracking" ? (
-                    <Flex flex="1" direction="row" overflow="hidden">
+                    <Flex flex="1" direction="row" overflow="hidden" padding="2" gap={2}>
                         {/* Left Section */}
-                        <Flex direction="column" width="60%" overflow="hidden" padding="3">
+                        <Flex direction="column" width="60%" overflow="hidden"  height="100%">
                             {/* Text über der Karte */}
-                            <Flex justifyContent="flex-end" backgroundColor="white" boxShadow="sm" >
+                            <Flex justifyContent="flex-end" backgroundColor="white" boxShadow="sm" borderTopRadius="lg">
                                 <Text fontSize="md" color="gray.600" textAlign="center">
                                     {lastUpdated ? `Last updated: ${lastUpdated}` : "Loading data..."}
                                 </Text>
@@ -466,11 +466,10 @@ export function MapApp() {
                             <Box
                                 backgroundColor="white"
                                 borderWidth="1px"
-                                borderRadius="lg"
+                                borderBottomRadius="lg"
                                 boxShadow="lg"
                                 overflow="hidden"
                                 flex="1"
-                                marginBottom="4"
                             >
                                 <MapContainer
                                     mapId={MAP_ID}
@@ -590,7 +589,7 @@ export function MapApp() {
                         </Flex>
 
                         {/* Right Section */}
-                        <Flex direction="column" width="40%" overflow="hidden" padding="3">
+                        <Flex direction="column" width="40%" overflow="hidden">
                             {/* Table Section */}
                             <Box
                                 backgroundColor="white"
@@ -598,7 +597,6 @@ export function MapApp() {
                                 borderRadius="lg"
                                 boxShadow="lg"
                                 flex="3"
-                                padding="4"
                                 overflowY="auto"
                                 height="400px" // Zusätzliche Höhe für Scrollbarkeit
                             >
@@ -650,19 +648,21 @@ export function MapApp() {
                     <AnalysisPage />
                 ): null }
             </Flex>
-
             {/* Footer */}
-            <Box
+            <Flex
+                height="7%"
+                textAlign="center"
                 backgroundColor="#2d7d9f"
                 color="white"
                 padding="4"
-                textAlign="center"
                 boxShadow="lg"
-                marginTop="auto"
+                alignItems="center"
+                justifyContent="center" 
+                flexDirection="column"
             >
-                <Text>© 2023 ParkingMS. All Rights Reserved.</Text>
+                <Text>© 2025 ParkingMS. All Rights Reserved.</Text>
                 <Text>Developed for the AOSD seminar project.</Text>
-            </Box>
+            </Flex>
         </Flex>
     );
 }
