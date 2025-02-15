@@ -138,8 +138,6 @@ export function MapApp() {
 
     useEffect(() => {
         if (geoJsonData && liveData) {
-            console.log(geoJsonData);
-            console.log(liveData);
 
             const updatedGeoJsonData = {
                 ...geoJsonData,
@@ -298,34 +296,21 @@ export function MapApp() {
             // Marker-Klick-Event hinzufügen
             map.olMap.on("click", (event) => {
                 const features = map.olMap.getFeaturesAtPixel(event.pixel);
-                if (features?.length) {
-                    const feature = features[0];
-                    const coordinates = feature?.getGeometry().getCoordinates();
-                    const name = feature?.get("NAME");
-                    const status = feature?.get("status");
-                    const parkingFree = feature?.get("parkingFree");
-                    const freePercentage = feature?.get("freePercentage").toFixed(1);
-
-                    // Popup anzeigen
-                    popupElement.innerHTML = `
-            <strong>${name}</strong><br/>
-            Status: ${status}<br/>
-            Available Spots: ${parkingFree}<br/>
-            Free in %: ${freePercentage}
-        `;
-                    popupOverlay.setPosition(coordinates);
-
-                    // Passenden Tabelleneintrag ausklappen
-                    const rowIndex = tableData.findIndex((row) => row.name === name);
-                    if (rowIndex !== -1) {
-                        setExpandedRow(rowIndex);
-                    }
-                } else {
-                    popupOverlay.setPosition(undefined); // Popup schließen
-                    setExpandedRow(null); // Keine Zeile ausgeklappt
+                if (!features?.length) {
+                    popupOverlay.setPosition(undefined);
+                    return;
                 }
-            });
 
+                const feature = features[0];
+                const coordinates = feature?.getGeometry().getCoordinates();
+                const name = feature?.get("NAME") || feature?.get("NAME_NORMALIZED");
+                const status = feature?.get("status");
+                const parkingFree = feature?.get("parkingFree");
+                const freePercentage = feature?.get("freePercentage") ? feature.get("freePercentage").toFixed(1) : "N/A";
+                
+                popupElement.innerHTML = `<strong>${name}</strong><br/>Status: ${status}<br/>Available Spots: ${parkingFree}<br/>Free in %: ${freePercentage}`;
+                popupOverlay.setPosition(coordinates);
+            });
 
             filteredSource.once("featuresloadend", () => {
                 const extent = filteredSource.getExtent();
@@ -375,7 +360,7 @@ export function MapApp() {
                         _hover={{ backgroundColor: "blue.500" }}
                         value={mode}
                         onChange={(e) => setMode(e.target.value)}
-                        zIndex={10} // Stellt sicher, dass das Dropdown über anderen Elementen liegt
+                        zIndex={10} 
                     >
                         <option
                             value="Live Tracking"
@@ -598,7 +583,6 @@ export function MapApp() {
                                 boxShadow="lg"
                                 flex="3"
                                 overflowY="auto"
-                                height="400px" // Zusätzliche Höhe für Scrollbarkeit
                             >
                                 <Table variant="simple">
                                     <Thead>
@@ -610,7 +594,7 @@ export function MapApp() {
                                     </Thead>
                                     <Tbody>
                                         {tableData
-                                            .sort((a, b) => b.free - a.free) // Sortieren nach freien Parkplätzen
+                                            .sort((a, b) => b.free - a.free)
                                             .map((row, index) => (
                                                 <>
                                                     <Tr
