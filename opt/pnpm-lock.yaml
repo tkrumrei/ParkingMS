@@ -401,9 +401,15 @@ importers:
       ol:
         specifier: 'catalog:'
         version: 9.2.4
+      papaparse:
+        specifier: ^5.3.0
+        version: 5.5.2
       react:
         specifier: 'catalog:'
         version: 18.3.1
+      react-chartjs-2:
+        specifier: ^3.0.3
+        version: 3.3.0(chart.js@3.9.1)(react@18.3.1)
       react-dom:
         specifier: 'catalog:'
         version: 18.3.1(react@18.3.1)
@@ -2140,6 +2146,9 @@ packages:
   character-entities-legacy@3.0.0:
     resolution: {integrity: sha512-RpPp0asT/6ufRm//AJVwpViZbGM/MkjQFxJccQRHmISF/22NBtsHqAWmL+/pmkPWoIUJdWyeVleTl1wydHATVQ==}
 
+  chart.js@3.9.1:
+    resolution: {integrity: sha512-Ro2JbLmvg83gXF5F4sniaQ+lTbSv18E+TIf2cOeiH1Iqd2PGFOtem+DUufMZsCJwFE7ywPOpfXFBwRTGq7dh6w==}
+
   check-error@2.1.1:
     resolution: {integrity: sha512-OAlb+T7V4Op9OwdkjmguYRqncdlx5JiofwOAUkmTF+jNdHwzTaTs4sRAGpzLF3oOz5xAyDGrPgeIDFQmDOTiJw==}
     engines: {node: '>= 16'}
@@ -3489,6 +3498,9 @@ packages:
   pako@2.1.0:
     resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
 
+  papaparse@5.5.2:
+    resolution: {integrity: sha512-PZXg8UuAc4PcVwLosEEDYjPyfWnTEhOrUfdv+3Bx+NuAb+5NhDmXzg5fHWmdCh1mP5p7JAZfFr3IMQfcntNAdA==}
+
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
     engines: {node: '>=6'}
@@ -3636,6 +3648,12 @@ packages:
 
   rbush@3.0.1:
     resolution: {integrity: sha512-XRaVO0YecOpEuIvbhbpTrZgoiI6xBlz6hnlr6EHhd+0x9ase6EmeN+hdwwUaJvLcsFFQ8iWVF1GAK1yB0BWi0w==}
+
+  react-chartjs-2@3.3.0:
+    resolution: {integrity: sha512-4Mt0SR2aiUbWi/4762odRBYSnbNKSs4HWc0o3IW43py5bMfmfpeZU95w6mbvtuLZH/M3GsPJMU8DvDc+5U9blQ==}
+    peerDependencies:
+      chart.js: ^3.5.0
+      react: ^16.8.0 || ^17.0.0
 
   react-clientside-effect@1.2.7:
     resolution: {integrity: sha512-gce9m0Pk/xYYMEojRI9bgvqQAkl6hm7ozQvqWPyQx+kULiatdHgkNM1QG4DQRx5N9BAzWSCJmt9mMV8/KsdgVg==}
@@ -6438,6 +6456,8 @@ snapshots:
 
   character-entities-legacy@3.0.0: {}
 
+  chart.js@3.9.1: {}
+
   check-error@2.1.1: {}
 
   chokidar@4.0.3:
@@ -8054,6 +8074,8 @@ snapshots:
 
   pako@2.1.0: {}
 
+  papaparse@5.5.2: {}
+
   parent-module@1.0.1:
     dependencies:
       callsites: 3.1.0
@@ -8176,6 +8198,11 @@ snapshots:
   rbush@3.0.1:
     dependencies:
       quickselect: 2.0.0
+
+  react-chartjs-2@3.3.0(chart.js@3.9.1)(react@18.3.1):
+    dependencies:
+      chart.js: 3.9.1
+      react: 18.3.1
 
   react-clientside-effect@1.2.7(react@18.3.1):
     dependencies:

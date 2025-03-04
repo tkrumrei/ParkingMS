@@ -1,7 +1,7 @@
 import { Box, Flex, Table, Thead, Tr, Th, Tbody, Td, Text, Button, Select } from "@open-pioneer/chakra-integration";
 import { MapAnchor, MapContainer, useMapModel } from "@open-pioneer/map";
 import { MAP_ID } from "./services";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import VectorSource from "ol/source/Vector";
 import VectorLayer from "ol/layer/Vector.js";
 import GeoJSON from "ol/format/GeoJSON";
@@ -21,7 +21,7 @@ export function MapApp() {
 
     const intl = useIntl();
     const { map } = useMapModel(MAP_ID);
-    const [mode, setMode] = useState("Live Tracking");
+    const [mode, setMode] = useState("Analysis");
     const [geoJsonData, setGeoJsonData] = useState(null);
     const [tableData, setTableData] = useState<any[]>([]);
     const [liveData, setLiveData] = useState<any[]>([]);
@@ -363,6 +363,17 @@ export function MapApp() {
                         zIndex={10} 
                     >
                         <option
+                            value="Analysis"
+                            style={{
+                                fontSize: "1rem",
+                                padding: "10px",
+                                backgroundColor: "white",
+                                color: "black",
+                            }}
+                        >
+                            Analysis
+                        </option>
+                        <option
                             value="Live Tracking"
                             style={{
                                 fontSize: "1rem",
@@ -383,17 +394,6 @@ export function MapApp() {
                             }}
                         >
                             Forecasting
-                        </option>
-                        <option
-                            value="Analysis"
-                            style={{
-                                fontSize: "1rem",
-                                padding: "10px",
-                                backgroundColor: "white",
-                                color: "black",
-                            }}
-                        >
-                            Analysis
                         </option>
                     </Select>
 
@@ -627,9 +627,13 @@ export function MapApp() {
                         </Flex>
                     </Flex>
                 ) : mode === "Forecasting" ? (
-                    <ForecastingPage/>
+                    <Flex flex="1" direction="column" overflow="hidden" height="80%">
+                        <ForecastingPage />
+                    </Flex>
                 ) : mode === "Analysis" ? (
-                    <AnalysisPage />
+                    <Flex flex="1" direction="column" overflow="hidden">
+                        <AnalysisPage />
+                    </Flex>
                 ): null }
             </Flex>
             {/* Footer */}
