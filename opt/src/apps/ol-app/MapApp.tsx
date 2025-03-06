@@ -60,7 +60,6 @@ export function MapApp() {
                 );
             });
             const header = lines[0];
-            console.log("Header Array:", header);
 
             // Index der Spalten "Wochentag" und "Uhrzeit" finden
             const dayIndex = header.indexOf("Wochentag");
