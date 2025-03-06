@@ -112,42 +112,21 @@ export function MapApp() {
         }
     };
 
-    const applyForecastToTableData = () => {
+    function applyForecastToTableData() {
         if (!forecastDiffs || !tableData || tableData.length === 0) {
             return;
         }
 
-        const nameMap = {
-            "Parkhaus Coesfelder Kreuz": "PH Coesfelder Kreuz",
-            "Parkhaus Theater": "PH Theater",
-            "Parkplatz Hörsterplatz": "PP Hörsterplatz",
-            "Parkhaus Alter Steinweg": "PH Alter Steinweg",
-            "Busparkplatz": "Busparkplatz",
-            "Parkplatz Schlossplatz Nord": "PP Schlossplatz Nord",
-            "Parkplatz Schlossplatz Süd": "PP Schlossplatz Süd",
-            "Parkhaus Aegidii": "PH Aegidii",
-            "Parkplatz Georgskommende": "PP Georgskommende",
-            "Parkhaus Münster Arkaden": "PH Münster Arkaden",
-            "Parkhaus Karstadt": "PH Karstadt",
-            "Parkhaus Stubengasse": "PH Stubengasse",
-            "Parkhaus Bremer Platz": "PH Bremer Platz",
-            "Parkhaus Engelenschanze": "PH Engelenschanze",
-            "Parkhaus Bahnhofstraße": "PH Bahnhofstraße",
-            "Parkhaus Cineplex": "PH Cineplex",
-            "Parkhaus PH Stadthaus 3": "PH Stadthaus 3",
-        };
-
+        const nameMap = { /* ... */ };
         const now = new Date();
         const day = now.toLocaleString("en-US", { weekday: "long" });
         const [time1, time2] = getNextTwoQuarterHours();
 
-        const updated = tableData.map((row) => {
-            // Hole den CSV-Namen. Fallback, falls kein Mapping existiert:
+        let changed = false; // Merker, ob sich überhaupt etwas ändert
+        const updatedData = tableData.map((row) => {
             const csvName = nameMap[row.name] || row.name;
 
-            const free = row.free || 0;
             let diff1 = 0, diff2 = 0;
-
             if (forecastDiffs[day]?.[time1]?.[csvName]) {
                 diff1 = forecastDiffs[day][time1][csvName];
             }
@@ -155,12 +134,25 @@ export function MapApp() {
                 diff2 = forecastDiffs[day][time2][csvName];
             }
 
-            const plus30 = Math.max(0, free + diff1 + diff2);
-            return { ...row, plus30 };
+            const plus30 = Math.max(0, (row.free || 0) + diff1 + diff2);
+
+            // Prüfen, ob sich plus30 ändert
+            if (plus30 !== row.plus30) {
+                changed = true;
+                // Nur diese Zeile mit neuem Wert
+                return { ...row, plus30 };
+            } else {
+                // Falls identisch, unverändert zurückgeben
+                return row;
+            }
         });
 
-        setTableData(updated);
-    };
+        // Nur wenn wirklich etwas anders ist, setzten wir tableData neu
+        if (changed) {
+            setTableData(updatedData);
+        }
+    }
+
 
     function getNextTwoQuarterHours() {
         const now = new Date();
