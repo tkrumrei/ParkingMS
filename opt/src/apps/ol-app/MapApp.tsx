@@ -347,6 +347,18 @@ export function MapApp() {
     }, []);
 
     useEffect(() => {
+        if (map?.olMap && mode === "Live Tracking") {
+            const view = map.olMap.getView();
+            const initialExtent = transformExtent(
+                [7.60416153295933, 51.9508596684052, 7.652558291969784, 51.97782974576418],
+                "EPSG:4326",
+                "EPSG:3857"
+            );
+            view.fit(initialExtent, { maxZoom: 16 });
+        }
+    }, [map, mode]);
+
+    useEffect(() => {
         if (map?.layers && geoJsonData) {
             const extent = transformExtent(
                 [7.602380686696091, 51.94791196358763, 7.652558291969784, 51.97782974576418],
@@ -359,7 +371,7 @@ export function MapApp() {
 
             setInitialView({
                 center: view.getCenter() as [number, number],
-                zoom: view.getZoom() || 10,
+                zoom: view.getZoom() || 16,
             });
 
             const vectorSource = new VectorSource({
