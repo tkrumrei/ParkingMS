@@ -16,19 +16,189 @@ import { transformExtent } from "ol/proj";
 import { set } from "ol/transform";
 import { AnalysisPage } from "./AnalysisPage";
 import { ForecastingPage } from "./ForecastingPage";
+import { renderToStaticMarkup } from "react-dom/server";
+import { FaMapMarkerAlt } from "react-icons/fa";
+
+function createMarkerIcon(color: string, sizePx: number = 24): string {
+    const iconSvg = renderToStaticMarkup(
+        <FaMapMarkerAlt style={{ color, fontSize: `${sizePx}px` }} />
+    );
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(iconSvg);
+}
 
 export function MapApp() {
-
     const intl = useIntl();
     const { map } = useMapModel(MAP_ID);
     const [mode, setMode] = useState("Analysis");
     const [geoJsonData, setGeoJsonData] = useState(null);
     const [tableData, setTableData] = useState<any[]>([]);
     const [liveData, setLiveData] = useState<any[]>([]);
-    const [expandedRow, setExpandedRow] = useState<number | null>(null); // Zustand für die ausgeklappte Zeile
+    const [expandedRow, setExpandedRow] = useState<number | null>(null);
     const [initialView, setInitialView] = useState<{ center: [number, number]; zoom: number } | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+    const [forecastDiffs, setForecastDiffs] = useState<any>(null);
 
+    // Funktion zum Laden der CSV mit den Differenzwerten
+    const fetchForecastData = async () => {
+        try {
+            const response = await fetch("./data/average_Parkhausdaten_week.csv");
+            if (!response.ok) {
+                throw new Error(`Error fetching forecast data: ${response.statusText}`);
+            }
+
+            const text = await response.text();
+
+            // Jede Zeile splitten und Zellen bereinigen
+            const lines = text.split("\n").map((line) => {
+                const columns = line.split(",");
+                return columns.map((cell) =>
+                    cell
+                        .replace(/"/g, "")      // alle doppelten Anführungszeichen weg
+                        .replace(/\r/g, "")     // \r weg
+                        .replace(/\n/g, "")     // sicherheitshalber \n weg
+                        .trim()
+                );
+            });
+            const header = lines[0];
+            console.log("Header Array:", header);
+
+            // Index der Spalten "Wochentag" und "Uhrzeit" finden
+            const dayIndex = header.indexOf("Wochentag");
+            const timeIndex = header.indexOf("Uhrzeit");
+            if (dayIndex < 0 || timeIndex < 0) {
+                console.error("Konnte Spalten 'Wochentag' bzw. 'Uhrzeit' nicht finden!");
+                return;
+            }
+
+            // Ermitteln, welche Spalten _Diff sind
+            const diffColumns = header.filter((h) => h.endsWith("_Diff"));
+
+            const forecastMap: any = {};
+
+            // Durch die Datenzeilen iterieren (Start ab i=1, weil i=0 -> Header)
+            for (let i = 1; i < lines.length; i++) {
+                const row = lines[i];
+                if (!row || row.length <= timeIndex) continue;
+
+                // Lies den Wochentag & die Uhrzeit aus den richtigen Spalten:
+                const day = row[dayIndex];
+                const time = row[timeIndex];
+                if (!day || !time) continue;
+
+                if (!forecastMap[day]) {
+                    forecastMap[day] = {};
+                }
+                if (!forecastMap[day][time]) {
+                    forecastMap[day][time] = {};
+                }
+
+                // Jetzt alle Diff-Spalten auswerten
+                diffColumns.forEach((colName) => {
+                    const colPos = header.indexOf(colName);
+                    if (colPos < 0) return;
+
+                    const rawVal = row[colPos];
+                    const val = parseInt(rawVal, 10) || 0;
+
+                    // Spaltenname "PH Theater_Diff" -> Parkhausname "PH Theater"
+                    const parkhausName = colName.replace(/_Diff$/, "").trim();
+                    forecastMap[day][time][parkhausName] = val;
+                });
+            }
+
+            setForecastDiffs(forecastMap);
+        } catch (error) {
+            console.error("Failed to fetch forecast data:", error);
+        }
+    };
+
+    const applyForecastToTableData = () => {
+        if (!forecastDiffs || !tableData || tableData.length === 0) {
+            return;
+        }
+
+        const nameMap = {
+            "Parkhaus Coesfelder Kreuz": "PH Coesfelder Kreuz",
+            "Parkhaus Theater": "PH Theater",
+            "Parkplatz Hörsterplatz": "PP Hörsterplatz",
+            "Parkhaus Alter Steinweg": "PH Alter Steinweg",
+            "Busparkplatz": "Busparkplatz",
+            "Parkplatz Schlossplatz Nord": "PP Schlossplatz Nord",
+            "Parkplatz Schlossplatz Süd": "PP Schlossplatz Süd",
+            "Parkhaus Aegidii": "PH Aegidii",
+            "Parkplatz Georgskommende": "PP Georgskommende",
+            "Parkhaus Münster Arkaden": "PH Münster Arkaden",
+            "Parkhaus Karstadt": "PH Karstadt",
+            "Parkhaus Stubengasse": "PH Stubengasse",
+            "Parkhaus Bremer Platz": "PH Bremer Platz",
+            "Parkhaus Engelenschanze": "PH Engelenschanze",
+            "Parkhaus Bahnhofstraße": "PH Bahnhofstraße",
+            "Parkhaus Cineplex": "PH Cineplex",
+            "Parkhaus PH Stadthaus 3": "PH Stadthaus 3",
+        };
+
+        const now = new Date();
+        const day = now.toLocaleString("en-US", { weekday: "long" });
+        const [time1, time2] = getNextTwoQuarterHours();
+
+        const updated = tableData.map((row) => {
+            // Hole den CSV-Namen. Fallback, falls kein Mapping existiert:
+            const csvName = nameMap[row.name] || row.name;
+
+            const free = row.free || 0;
+            let diff1 = 0, diff2 = 0;
+
+            if (forecastDiffs[day]?.[time1]?.[csvName]) {
+                diff1 = forecastDiffs[day][time1][csvName];
+            }
+            if (forecastDiffs[day]?.[time2]?.[csvName]) {
+                diff2 = forecastDiffs[day][time2][csvName];
+            }
+
+            const plus30 = Math.max(0, free + diff1 + diff2);
+            return { ...row, plus30 };
+        });
+
+        setTableData(updated);
+    };
+
+    function getNextTwoQuarterHours() {
+        const now = new Date();
+
+        // 1) Reste auf die nächste Viertelstunde hochrunden
+        let nextTime1 = new Date(now);
+        const remainder = nextTime1.getMinutes() % 15;
+        if (remainder !== 0) {
+            nextTime1.setMinutes(nextTime1.getMinutes() + (15 - remainder));
+        } else {
+            // Falls remainder == 0, dann springe direkt +15 Minuten weiter
+            nextTime1.setMinutes(nextTime1.getMinutes() + 15);
+        }
+        nextTime1.setSeconds(0);
+        nextTime1.setMilliseconds(0);
+
+        // 2) Für das zweite Intervall nochmals 15 Minuten drauf
+        let nextTime2 = new Date(nextTime1);
+        nextTime2.setMinutes(nextTime2.getMinutes() + 15);
+
+        // 3) Beide Zeiten als 'HH:MM:SS' zurückgeben
+        const timeStr1 = nextTime1.toTimeString().slice(0, 5) + ":00";
+        const timeStr2 = nextTime2.toTimeString().slice(0, 5) + ":00";
+
+        return [timeStr1, timeStr2];
+    }
+
+    // fetchGeoJson & fetchXmlData beim Mount
+    useEffect(() => {
+        fetchGeoJson();
+        fetchXmlData();
+        fetchForecastData(); // Forecast CSV auch laden
+    }, []);
+
+    // Sobald tableData oder forecastDiffs sich ändern, Prognose anwenden.
+    useEffect(() => {
+        applyForecastToTableData();
+    }, [tableData, forecastDiffs]);
 
     const handleRowExpand = (index: number, coordinates: any) => {
         if (expandedRow === index) {
@@ -38,7 +208,7 @@ export function MapApp() {
                 map.olMap.getView().animate({
                     center: initialView.center,
                     zoom: initialView.zoom,
-                    duration: 500, // Animation über 0.5 Sekunde
+                    duration: 500,
                 });
             }
         } else {
@@ -47,8 +217,8 @@ export function MapApp() {
             if (coordinates && map?.olMap) {
                 map.olMap.getView().animate({
                     center: coordinates,
-                    zoom: 17, // Zoomen auf einen sinnvollen Maßstab
-                    duration: 500, // Animation über 0.5 Sekunde
+                    zoom: 17,
+                    duration: 500,
                 });
             }
         }
@@ -78,31 +248,28 @@ export function MapApp() {
         }
     };
 
-
-
     const normalizeText = (text: string | null): string => {
         if (!text) return "";
         return text
-            .replace(/ß/g, "") // Entferne "ß"
-            .replace(/ü/g, "") // Entferne "ü"
-            .replace(/ö/g, "") // Entferne "ö"
-            .replace(/ä/g, "") // Entferne "ä"
+            .replace(/ß/g, "")
+            .replace(/ü/g, "")
+            .replace(/ö/g, "")
+            .replace(/ä/g, "");
     };
 
     const addNormalizedNamesToGeoJson = (geoJsonData: any) => {
         const updatedGeoJson = {
             ...geoJsonData,
-            features: geoJsonData.features.map((feature) => ({
+            features: geoJsonData.features.map((feature: any) => ({
                 ...feature,
                 properties: {
                     ...feature.properties,
-                    NAME_NORMALIZED: normalizeText(feature.properties.NAME), // Neues Attribut mit bereinigtem Namen
+                    NAME_NORMALIZED: normalizeText(feature.properties.NAME),
                 },
             })),
         };
         return updatedGeoJson;
     };
-
 
     const fetchXmlData = async () => {
         try {
@@ -114,7 +281,7 @@ export function MapApp() {
             const data = await response.json();
 
             // Falls notwendig, bereinige die Namen
-            const cleanedData = data.map((item) => ({
+            const cleanedData = data.map((item: any) => ({
                 ...item,
                 bezeichnung: sanitizeText(item.bezeichnung),
             }));
@@ -127,33 +294,26 @@ export function MapApp() {
 
     function sanitizeText(text: string | null | undefined): string {
         if (!text) return "";
-        return text
-            .replace(/�/g, "") // Ersetze falsch dargestellte Zeichen
+        return text.replace(/�/g, "");
     }
 
     useEffect(() => {
-        fetchGeoJson();
-        fetchXmlData();
-    }, []);
-
-    useEffect(() => {
         if (geoJsonData && liveData) {
-
             const updatedGeoJsonData = {
                 ...geoJsonData,
-                features: geoJsonData.features.map((feature) => {
+                features: geoJsonData.features.map((feature: any) => {
                     const normalizedFeatureName = feature.properties.NAME_NORMALIZED;
 
                     // Bereinige auch den `bezeichnung`-Wert aus `liveData`
                     const parkhaus = liveData.find(
-                        (item) => item.bezeichnung === normalizedFeatureName
+                        (item: any) => item.bezeichnung === normalizedFeatureName
                     );
 
                     if (parkhaus) {
                         return {
                             ...feature,
                             properties: {
-                                ...feature.properties, // Behalte bestehende Eigenschaften bei
+                                ...feature.properties,
                                 parkingTotal: parkhaus.gesamt,
                                 parkingFree: parkhaus.frei,
                                 status: parkhaus.status,
@@ -161,20 +321,18 @@ export function MapApp() {
                         };
                     }
 
-                    return feature; // Unverändert zurückgeben, wenn kein Match gefunden wird
+                    return feature;
                 }),
             };
 
-            // Verhindere Endlosschleife durch Vergleich
             if (JSON.stringify(geoJsonData) !== JSON.stringify(updatedGeoJsonData)) {
                 setGeoJsonData(updatedGeoJsonData);
             }
         }
     }, [geoJsonData, liveData]);
 
-
     useEffect(() => {
-        const headerElement = document.querySelector("header"); // Adjust selector as needed
+        const headerElement = document.querySelector("header");
         const footerElement = document.querySelector("footer");
 
         const headerHeight = headerElement?.offsetHeight || 0;
@@ -182,7 +340,6 @@ export function MapApp() {
 
         const mapHeight = window.innerHeight - headerHeight - footerHeight;
 
-        // Apply the calculated height to your map
         const mapElement = document.getElementById("mapContainer");
         if (mapElement) {
             mapElement.style.height = `${mapHeight}px`;
@@ -200,13 +357,11 @@ export function MapApp() {
             const view = map.olMap.getView();
             view.fit(extent, { maxZoom: 16 });
 
-
             setInitialView({
                 center: view.getCenter() as [number, number],
-                zoom: view.getZoom() || 10, // Fallback-Zoomstufe
+                zoom: view.getZoom() || 10,
             });
 
-            // Filter: Nur Features innerhalb des Extents
             const vectorSource = new VectorSource({
                 features: new GeoJSON().readFeatures(geoJsonData, {
                     dataProjection: "EPSG:4326",
@@ -216,71 +371,69 @@ export function MapApp() {
 
             const filteredFeatures = vectorSource.getFeatures().filter((feature) => {
                 const coordinates = feature?.getGeometry().getCoordinates();
-                return coordinates[0] >= extent[0] && coordinates[0] <= extent[2] && // Längengrad prüfen
-                    coordinates[1] >= extent[1] && coordinates[1] <= extent[3];  // Breitengrad prüfen
+                return (
+                    coordinates[0] >= extent[0] &&
+                    coordinates[0] <= extent[2] &&
+                    coordinates[1] >= extent[1] &&
+                    coordinates[1] <= extent[3]
+                );
             });
 
             const tableEntries = filteredFeatures.map((feature) => {
                 const free = feature.get("parkingFree");
                 const total = feature.get("parkingTotal");
 
-                // Berechnung der Auslastung in Prozent
                 const freePercentage = total > 0 ? (free / total) * 100 : 0;
-
-                feature.set("freePercentage", freePercentage)
+                feature.set("freePercentage", freePercentage);
 
                 return {
                     name: feature.get("NAME"),
                     status: feature.get("status"),
                     total: total,
                     free: free,
-                    freePercentage: freePercentage.toFixed(1), // Auf eine Nachkommastelle runden
+                    freePercentage: freePercentage.toFixed(1),
                     coordinates: feature.getGeometry().getCoordinates(),
                 };
             });
             setTableData(tableEntries);
 
-            // Quelle mit gefilterten Features
             const filteredSource = new VectorSource({
                 features: filteredFeatures,
             });
 
-            // Dynamischer Style basierend auf dem Status
+            // Hier bauen wir den Marker-Style mit react-icons
             const markerStyle = (feature: FeatureLike) => {
-                const freePercentage = feature.get("freePercentage");
-                let color;
-
-                // Farbe basierend auf dem Prozentsatz bestimmen
+                const freePercentage = feature.get("freePercentage") || 0;
+                let color = "grey";
                 if (freePercentage > 50) {
-                    color = "lime"; // Mehr als 50% frei
-                } else if (freePercentage > 10 && freePercentage <= 50) {
-                    color = "yellow"; // Zwischen 5% und 50% frei
-                } else if (freePercentage > 0.01 && freePercentage <= 10) {
-                    color = "red"; // Weniger als 5% frei
-                } else {
-                    color = "grey"; // Standardfarbe, falls Prozentsatz nicht verfügbar
+                    color = "green";
+                } else if (freePercentage > 10) {
+                    color = "yellow";
+                } else if (freePercentage > 0) {
+                    color = "orange";
+                } else if (freePercentage === 0) {
+                    color = "darkred";
                 }
+
+                // Data-URL generieren
+                const iconUrl = createMarkerIcon(color, 24);
 
                 return new Style({
                     image: new Icon({
-                        src: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-                        scale: 0.8, // Größe des Icons
-                        anchor: [0.5, 1],  // Spitze des Icons zeigt auf den Punkt
-                        color: color,
+                        src: iconUrl,
+                        anchor: [0.5, 1],
+                        scale: 1,
                     }),
                 });
             };
 
-            // GeoJSON-Layer mit dynamischem Style erstellen
             const geojsonLayer = new VectorLayer({
                 source: filteredSource,
                 style: markerStyle,
             });
 
-            // Layer zur Karte hinzufügen
             map.olMap.addLayer(geojsonLayer);
 
-            // Popup-Overlay erstellen
             const popupElement = document.createElement("div");
             popupElement.id = "popup";
             popupElement.style.backgroundColor = "white";
@@ -293,7 +446,6 @@ export function MapApp() {
 
             map.olMap.addOverlay(popupOverlay);
 
-            // Marker-Klick-Event hinzufügen
             map.olMap.on("click", (event) => {
                 const features = map.olMap.getFeaturesAtPixel(event.pixel);
                 if (!features?.length) {
@@ -306,8 +458,10 @@ export function MapApp() {
                 const name = feature?.get("NAME") || feature?.get("NAME_NORMALIZED");
                 const status = feature?.get("status");
                 const parkingFree = feature?.get("parkingFree");
-                const freePercentage = feature?.get("freePercentage") ? feature.get("freePercentage").toFixed(1) : "N/A";
-                
+                const freePercentage = feature?.get("freePercentage")
+                    ? feature.get("freePercentage").toFixed(1)
+                    : "N/A";
+
                 popupElement.innerHTML = `<strong>${name}</strong><br/>Status: ${status}<br/>Available Spots: ${parkingFree}<br/>Free in %: ${freePercentage}`;
                 popupOverlay.setPosition(coordinates);
             });
@@ -360,7 +514,7 @@ export function MapApp() {
                         _hover={{ backgroundColor: "blue.500" }}
                         value={mode}
                         onChange={(e) => setMode(e.target.value)}
-                        zIndex={10} 
+                        zIndex={10}
                     >
                         <option
                             value="Analysis"
@@ -383,17 +537,6 @@ export function MapApp() {
                             }}
                         >
                             Live Tracking
-                        </option>
-                        <option
-                            value="Forecasting"
-                            style={{
-                                fontSize: "1rem",
-                                padding: "10px",
-                                backgroundColor: "white",
-                                color: "black",
-                            }}
-                        >
-                            Forecasting
                         </option>
                     </Select>
 
@@ -423,22 +566,22 @@ export function MapApp() {
                                 </Text>
                                 {/* Refresh button */}
                                 <Button
-                                    onClick={fetchGeoJson} // Function to refresh data
-                                    backgroundColor="white" // Set background to white
-                                    color="#3182CE" // Blue icon color
-                                    borderRadius="50%" // Rounded button
-                                    width="30px" // Equal width and height for a perfect circle
+                                    onClick={fetchGeoJson}
+                                    backgroundColor="white"
+                                    color="#3182CE"
+                                    borderRadius="50%"
+                                    width="30px"
                                     height="30px"
-                                    display="flex" // Ensures proper centering of the icon
+                                    display="flex"
                                     alignItems="center"
                                     justifyContent="center"
                                     padding="2"
                                     _hover={{
-                                        backgroundColor: "#E3F2FD", // Light blue hover effect
+                                        backgroundColor: "#E3F2FD",
                                         borderColor: "#3182CE",
                                     }}
                                     _active={{
-                                        backgroundColor: "#BBDEFB", // Darker blue on click
+                                        backgroundColor: "#BBDEFB",
                                         borderColor: "#3182CE",
                                     }}
                                     aria-label="Refresh"
@@ -462,7 +605,7 @@ export function MapApp() {
                                     role="main"
                                     aria-label="Interactive Parking Map"
                                 >
-                                    {/* Legende hinzufügen */}
+                                    {/* Legende */}
                                     <Box
                                         position="absolute"
                                         top="20px"
@@ -481,7 +624,7 @@ export function MapApp() {
                                             <Box
                                                 width="16px"
                                                 height="16px"
-                                                backgroundColor="lime"
+                                                backgroundColor="green"
                                                 marginRight="8px"
                                                 borderRadius="50%"
                                             ></Box>
@@ -501,11 +644,21 @@ export function MapApp() {
                                             <Box
                                                 width="16px"
                                                 height="16px"
-                                                backgroundColor="red"
+                                                backgroundColor="orange"
                                                 marginRight="8px"
                                                 borderRadius="50%"
                                             ></Box>
                                             <Text>Almost Occupied</Text>
+                                        </Flex>
+                                        <Flex alignItems="center" marginBottom="2">
+                                            <Box
+                                                width="16px"
+                                                height="16px"
+                                                backgroundColor="darkred"
+                                                marginRight="8px"
+                                                borderRadius="50%"
+                                            ></Box>
+                                            <Text>Occupied</Text>
                                         </Flex>
                                         <Flex alignItems="center">
                                             <Box
@@ -535,7 +688,7 @@ export function MapApp() {
                                                     if (map?.olMap) {
                                                         const view = map.olMap.getView();
                                                         const initialExtent = transformExtent(
-                                                            [7.60416153295933, 51.9508596684052, 7.652558291969784, 51.97782974576418], // Beispiel-Extent
+                                                            [7.60416153295933, 51.9508596684052, 7.652558291969784, 51.97782974576418],
                                                             "EPSG:4326",
                                                             "EPSG:3857"
                                                         );
@@ -559,7 +712,7 @@ export function MapApp() {
                                                     fill="currentColor"
                                                     viewBox="0 0 24 24"
                                                     style={{
-                                                        fontSize: "28px", // Größe des Icons festlegen
+                                                        fontSize: "28px",
                                                     }}
                                                 >
                                                     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
@@ -568,6 +721,18 @@ export function MapApp() {
                                             <ZoomIn mapId={MAP_ID} />
                                             <ZoomOut mapId={MAP_ID} />
                                         </Flex>
+                                    </MapAnchor>
+                                    <MapAnchor position="bottom-left" verticalGap={1} horizontalGap={1}>
+                                        <Box
+                                            backgroundColor="white"
+                                            borderRadius="sm"
+                                            opacity="0.7"
+                                            boxShadow="sm"
+                                            fontSize="x-small"
+                                            color="black"
+                                        >
+                                            Icons by Font Awesome (CC BY 4.0)
+                                        </Box>
                                     </MapAnchor>
                                 </MapContainer>
                             </Box>
@@ -590,6 +755,7 @@ export function MapApp() {
                                             <Th>Parking Facility</Th>
                                             <Th>Status</Th>
                                             <Th>Parking Free</Th>
+                                            <Th>+30min</Th>
                                         </Tr>
                                     </Thead>
                                     <Tbody>
@@ -599,16 +765,28 @@ export function MapApp() {
                                                 <>
                                                     <Tr
                                                         key={index}
-                                                        onClick={() => handleRowExpand(index, row.coordinates)} // Zeile anklickbar und Karte zoomen
+                                                        onClick={() => handleRowExpand(index, row.coordinates)}
                                                         style={{
                                                             cursor: "pointer",
                                                             backgroundColor: expandedRow === index ? "#e9ecef" : "#f9f9f9",
-                                                        }} // Hintergrundfarbe bei Auswahl ändern
+                                                        }}
                                                         _hover={{ backgroundColor: "#d6d6d6" }}
                                                     >
                                                         <Td>{row.name}</Td>
                                                         <Td>{row.status}</Td>
                                                         <Td>{row.free}</Td>
+                                                        <Td
+                                                            style={{
+                                                                color:
+                                                                    row.plus30 > row.free
+                                                                        ? "green"
+                                                                        : row.plus30 < row.free
+                                                                            ? "red"
+                                                                            : "inherit",
+                                                            }}
+                                                        >
+                                                            {row.plus30 !== undefined ? row.plus30 : "-"}
+                                                        </Td>
                                                     </Tr>
                                                     {expandedRow === index && (
                                                         <Tr>
@@ -626,15 +804,11 @@ export function MapApp() {
                             </Box>
                         </Flex>
                     </Flex>
-                ) : mode === "Forecasting" ? (
-                    <Flex flex="1" direction="column" overflow="hidden" height="80%">
-                        <ForecastingPage />
-                    </Flex>
                 ) : mode === "Analysis" ? (
                     <Flex flex="1" direction="column" overflow="hidden">
                         <AnalysisPage />
                     </Flex>
-                ): null }
+                ) : null }
             </Flex>
             {/* Footer */}
             <Flex
@@ -644,7 +818,7 @@ export function MapApp() {
                 color="white"
                 boxShadow="lg"
                 alignItems="center"
-                justifyContent="center" 
+                justifyContent="center"
                 flexDirection="column"
             >
                 <Text>© 2025 ParkingMS. All Rights Reserved.</Text>
