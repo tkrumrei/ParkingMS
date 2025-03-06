@@ -642,7 +642,6 @@ export function MapApp() {
                 textAlign="center"
                 backgroundColor="#2d7d9f"
                 color="white"
-                padding="4"
                 boxShadow="lg"
                 alignItems="center"
                 justifyContent="center" 
