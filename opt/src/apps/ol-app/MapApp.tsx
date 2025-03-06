@@ -18,6 +18,10 @@ import { AnalysisPage } from "./AnalysisPage";
 import { ForecastingPage } from "./ForecastingPage";
 import { renderToStaticMarkup } from "react-dom/server";
 import { FaMapMarkerAlt } from "react-icons/fa";
+import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton } from "@open-pioneer/chakra-integration";
+
+
+
 
 function createMarkerIcon(color: string, sizePx: number = 24): string {
     const iconSvg = renderToStaticMarkup(
@@ -37,6 +41,7 @@ export function MapApp() {
     const [initialView, setInitialView] = useState<{ center: [number, number]; zoom: number } | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
     const [forecastDiffs, setForecastDiffs] = useState<any>(null);
+    const [isAboutOpen, setIsAboutOpen] = useState(false);
 
     // Funktion zum Laden der CSV mit den Differenzwerten
     const fetchForecastData = async () => {
@@ -508,6 +513,7 @@ export function MapApp() {
                     <Select
                         width="200px"
                         backgroundColor="#2d7d9f"
+                        
                         color="white"
                         fontSize="2xl"
                         fontWeight="bold"
@@ -546,12 +552,27 @@ export function MapApp() {
 
                     {/* Right: Navigation Links */}
                     <Flex gap="4" alignItems="center">
-                        <Button variant="ghost" color="white">
+                        <Button variant="ghost" color="white" onClick={() => setIsAboutOpen(true)}>
                             About
                         </Button>
-                        <Button variant="ghost" color="white">
+                        <Button
+                            variant="ghost"
+                            color="white"
+                            onClick={() => window.open("https://github.com/tkrumrei", "_blank")}
+                        >
                             Contact
                         </Button>
+                        <Modal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)}>
+                            <ModalOverlay />
+                            <ModalContent>
+                                <ModalHeader>About ParkingMS</ModalHeader>
+                                <ModalCloseButton />
+                                <ModalBody>
+                                    <p>This web app was developed in the context of the AOSD seminar project.</p>
+                                    <p>It provides live data, forecasts, and analysis of available parking facilities in Münster.</p>
+                                </ModalBody>
+                            </ModalContent>
+                        </Modal>
                     </Flex>
                 </Flex>
             </Box>
