@@ -121,7 +121,25 @@ export function MapApp() {
             return;
         }
 
-        const nameMap = { /* ... */ };
+        const nameMap = {
+            "Parkhaus Coesfelder Kreuz": "PH Coesfelder Kreuz",
+            "Parkhaus Theater": "PH Theater",
+            "Parkplatz Hörsterplatz": "PP Hörsterplatz",
+            "Parkhaus Alter Steinweg": "PH Alter Steinweg",
+            "Busparkplatz": "Busparkplatz",
+            "Parkplatz Schlossplatz Nord": "PP Schlossplatz Nord",
+            "Parkplatz Schlossplatz Süd": "PP Schlossplatz Süd",
+            "Parkhaus Aegidii": "PH Aegidii",
+            "Parkplatz Georgskommende": "PP Georgskommende",
+            "Parkhaus Münster Arkaden": "PH Münster Arkaden",
+            "Parkhaus Karstadt": "PH Karstadt",
+            "Parkhaus Stubengasse": "PH Stubengasse",
+            "Parkhaus Bremer Platz": "PH Bremer Platz",
+            "Parkhaus Engelenschanze": "PH Engelenschanze",
+            "Parkhaus Bahnhofstraße": "PH Bahnhofstraße",
+            "Parkhaus Cineplex": "PH Cineplex",
+            "Parkhaus PH Stadthaus 3": "PH Stadthaus 3",
+        };
         const now = new Date();
         const day = now.toLocaleString("en-US", { weekday: "long" });
         const [time1, time2] = getNextTwoQuarterHours();
