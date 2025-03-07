@@ -836,6 +836,7 @@ export function MapApp() {
                                                                 <Text><strong>Free (%):</strong> {row.freePercentage}</Text>
                                                                 <Text><strong>Parking Total:</strong> {row.total}</Text>
                                                                 <Text><strong>Parking Free:</strong> {row.free}</Text>
+                                                                <Text><strong>in 30min:</strong> {row.plus30}</Text>
                                                             </Td>
                                                         </Tr>
                                                     )}
